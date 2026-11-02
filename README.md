@@ -96,8 +96,8 @@ docker cp <emby-container>:/system ./emby-lib
 dotnet publish src/EmbyTheme -c Release -o out -p:EmbyLibDir=$PWD/emby-lib
 ```
 
-Pushing a `v*` tag, or publishing a release for one on GitHub, builds the DLL on GitHub Actions and attaches it to
-the release. Every other push builds it too; the DLL is on the run's page under *Artifacts*.
+Bumping `<Version>` in `src/EmbyTheme/EmbyTheme.csproj` on `main` publishes a GitHub Release with the DLL attached,
+built against Emby 4.11's own assemblies (or run **Actions > Release** by hand).
 
 ## Layout
 

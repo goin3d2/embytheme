@@ -1,0 +1,73 @@
+# Builds the plugin and publishes a GitHub Release with the DLL attached.
+#
+# Runs on its own when a push to main changes <Version> in the project file
+# (no release yet for that version), or by hand: Actions -> Release -> Run workflow.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [src/EmbyTheme/EmbyTheme.csproj, .github/workflows/release.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PROJECT: src/EmbyTheme/EmbyTheme.csproj
+  DLL: EmbyTheme.dll
+  # Emby release whose DLLs the plugin is compiled against (the server supplies them at runtime).
+  EMBY_VERSION: 4.11.0.13
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(grep -oP '(?<=<Version>)[^<]+' "$PROJECT")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" >/dev/null 2>&1; then
+            echo "Release v$version already exists; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.version.outputs.skip != 'true'
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test
+        if: steps.version.outputs.skip != 'true'
+        run: dotnet run --project tests/EmbyTheme.Tests -c Release
+
+      - name: Get Emby server DLLs
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          curl -fsSL -o emby.deb "https://github.com/MediaBrowser/Emby.Releases/releases/download/${EMBY_VERSION}/emby-server-deb_${EMBY_VERSION}_amd64.deb"
+          dpkg-deb -x emby.deb emby-pkg
+          mkdir -p emby-lib
+          cp emby-pkg/opt/emby-server/system/{MediaBrowser.Common,MediaBrowser.Controller,MediaBrowser.Model}.dll emby-lib/
+
+      - name: Build
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          dotnet build "$PROJECT" -c Release -o out -p:EmbyLibDir="$PWD/emby-lib"
+          if ls out/MediaBrowser.*.dll >/dev/null 2>&1; then echo "Emby assemblies were bundled"; exit 1; fi
+
+      - name: Publish release
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          v="v${{ steps.version.outputs.version }}"
+          gh release create "$v" "out/$DLL" \
+            --target "$GITHUB_SHA" \
+            --title "EmbyTheme ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --notes "Copy \`$DLL\` into Emby's \`plugins\` folder and restart Emby. Built against Emby ${EMBY_VERSION}; needs Emby 4.10 or newer."
+        env:
+          GH_TOKEN: ${{ github.token }}
