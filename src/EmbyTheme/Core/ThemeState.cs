@@ -30,12 +30,18 @@ namespace EmbyTheme.Core
 
         /// <summary>You told the plugin to leave this series alone.</summary>
         Skipped,
+
+        /// <summary>Emby can't write to the series folder (a read-only mount). Looked at again after the "missing" interval.</summary>
+        ReadOnly,
     }
 
     /// <summary>What the plugin knows about one series. Keyed by Emby's internal item id.</summary>
     public sealed class SeriesThemeEntry
     {
         public string Name { get; set; }
+
+        /// <summary>The series folder, for the settings page and for the excluded-paths setting.</summary>
+        public string Path { get; set; }
 
         public string Tvdb { get; set; }
 
@@ -78,6 +84,8 @@ namespace EmbyTheme.Core
         public int NoId { get; set; }
 
         public int Failed { get; set; }
+
+        public int ReadOnly { get; set; }
 
         public int AlreadyHadTheme { get; set; }
 
@@ -143,6 +151,26 @@ namespace EmbyTheme.Core
         public SeriesThemeEntry GetOrAdd(long id) => this.Data.Series.GetOrAdd(id, _ => new SeriesThemeEntry());
 
         public SeriesThemeEntry Get(long id) => this.Data.Series.TryGetValue(id, out var e) ? e : null;
+
+        /// <summary>
+        /// 0.1.0 recorded read-only folders as Failed; move those to ReadOnly so they get the long retry interval.
+        /// Returns how many were moved.
+        /// </summary>
+        public int MigrateReadOnly()
+        {
+            var n = 0;
+            foreach (var entry in this.Data.Series.Values)
+            {
+                if (entry.Status == ThemeStatus.Failed && (entry.Error ?? string.Empty).StartsWith("folder is not writable", StringComparison.Ordinal))
+                {
+                    entry.Status = ThemeStatus.ReadOnly;
+                    entry.Attempts = 0;
+                    n++;
+                }
+            }
+
+            return n;
+        }
 
         public Dictionary<string, int> CountByStatus()
         {

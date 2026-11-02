@@ -204,6 +204,7 @@ namespace EmbyTheme.Api
         {
             Id = id.ToString(System.Globalization.CultureInfo.InvariantCulture),
             e.Name,
+            e.Path,
             e.Tvdb,
             e.Tmdb,
             e.ResolvedTvdb,

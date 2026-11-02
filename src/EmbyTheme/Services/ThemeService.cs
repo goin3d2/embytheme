@@ -95,10 +95,26 @@ namespace EmbyTheme.Services
                 }
             }
 
-            return this.libraryManager.GetItemList(query)
+            var series = this.libraryManager.GetItemList(query)
                 .OfType<Series>()
-                .OrderByDescending(s => s.DateCreated)
-                .ToArray();
+                .Where(s => !ThemeRules.IsExcluded(s.Path, options.ExcludedPaths));
+
+            switch (options.Order)
+            {
+                case LookupOrder.HighestRated:
+                    series = series.OrderByDescending(s => s.CommunityRating ?? 0f).ThenBy(s => s.ProductionYear ?? int.MaxValue);
+                    break;
+                case LookupOrder.NewestAdded:
+                    series = series.OrderByDescending(s => s.DateCreated);
+                    break;
+                default:
+                    series = series
+                        .OrderBy(s => s.ProductionYear ?? s.PremiereDate?.Year ?? int.MaxValue)
+                        .ThenByDescending(s => s.CommunityRating ?? 0f);
+                    break;
+            }
+
+            return series.ToArray();
         }
 
         public Series FindSeries(string itemId)
@@ -110,6 +126,7 @@ namespace EmbyTheme.Services
         public static void Describe(Series series, SeriesThemeEntry entry)
         {
             entry.Name = series.Name;
+            entry.Path = series.Path;
             var tvdb = series.GetProviderId(MetadataProviders.Tvdb);
             var tmdb = series.GetProviderId(MetadataProviders.Tmdb);
             if (!string.Equals(entry.Tmdb, tmdb, StringComparison.Ordinal))
@@ -203,7 +220,7 @@ namespace EmbyTheme.Services
 
             if (!this.CanWriteTo(series.Path, out var writeError))
             {
-                return new SeriesOutcome { Status = ThemeStatus.Failed, WriteFailed = true, Detail = "folder is not writable (" + writeError + ")" };
+                return new SeriesOutcome { Status = ThemeStatus.ReadOnly, WriteFailed = true, Detail = "folder is not writable (" + writeError + ")" };
             }
 
             var usedLookup = false;

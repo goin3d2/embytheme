@@ -79,6 +79,21 @@ namespace EmbyTheme.Tasks
             var summary = new RunSummary { StartedUtc = DateTime.UtcNow };
             var now = DateTime.UtcNow;
 
+            var migrated = store.MigrateReadOnly();
+            if (migrated > 0)
+            {
+                this.logger.Info("Marked {0} series in read-only folders as Read-only (they were listed as Failed)", migrated);
+            }
+
+            // Series in excluded folders are out of the picture entirely, history included.
+            if (options.ExcludedPaths.Length > 0)
+            {
+                foreach (var excluded in store.Data.Series.Where(kv => ThemeRules.IsExcluded(kv.Value.Path, options.ExcludedPaths)).Select(kv => kv.Key).ToList())
+                {
+                    store.Data.Series.TryRemove(excluded, out _);
+                }
+            }
+
             var series = service.GetSeriesInScope(options);
             summary.SeriesInScope = series.Length;
 
@@ -159,18 +174,10 @@ namespace EmbyTheme.Tasks
                     case ThemeStatus.NotFound: summary.NotFound++; break;
                     case ThemeStatus.NoId: summary.NoId++; break;
                     case ThemeStatus.Existing: summary.AlreadyHadTheme++; break;
+                    case ThemeStatus.ReadOnly: summary.ReadOnly++; break;
                     case ThemeStatus.Failed:
                         summary.Failed++;
-                        if (outcome.WriteFailed)
-                        {
-                            // Read-only folders are reported once each in the summary, not once per series.
-                            this.logger.Debug("{0}: {1}", show.Name, outcome.Detail);
-                        }
-                        else
-                        {
-                            this.logger.Warn("{0}: {1}", show.Name, outcome.Detail);
-                        }
-
+                        this.logger.Warn("{0}: {1}", show.Name, outcome.Detail);
                         break;
                 }
 
@@ -193,7 +200,7 @@ namespace EmbyTheme.Tasks
             summary.Waiting = Math.Max(0, due.Count - processed);
             if (service.UnwritableFolders.Count > 0)
             {
-                summary.Note = "Emby can't write to: " + string.Join(", ", service.UnwritableFolders) + ". Series there are retried later.";
+                summary.Note = "Emby can't write to: " + string.Join(", ", service.UnwritableFolders) + ". Series there are marked Read-only and looked at again after the missing-theme interval.";
             }
 
             summary.FinishedUtc = DateTime.UtcNow;
@@ -202,12 +209,13 @@ namespace EmbyTheme.Tasks
             progress.Report(100);
 
             this.logger.Info(
-                "Theme run done: {0} checked, {1} saved, {2} not on Plex, {3} without a usable id, {4} already had one, {5} failed; {6} still waiting for a later run",
+                "Theme run done: {0} checked, {1} saved, {2} not on Plex, {3} without a usable id, {4} already had one, {5} in read-only folders, {6} failed; {7} still waiting for a later run",
                 summary.Checked,
                 summary.Saved,
                 summary.NotFound,
                 summary.NoId,
                 summary.AlreadyHadTheme,
+                summary.ReadOnly,
                 summary.Failed,
                 summary.Waiting);
         }

@@ -5,10 +5,12 @@ plays them in the background while you browse.
 
 - Looks themes up on **Plex's TV theme server** (`tvthemes.plexapp.com/{tvdb}.mp3`), by TVDB id.
 - Series that only have a **TMDB id** get their TVDB id looked up through TMDB first (optional, needs a TMDB key).
-- Works through big libraries a slice at a time (**1,000 lookups per run** by default, every 6 hours), new series first.
+- Works through big libraries a slice at a time (**1,000 lookups per run** by default, every 6 hours), oldest shows
+  first (where Plex's coverage is best), or highest rated or newest added if you prefer.
 - Remembers every miss, so a show Plex doesn't have is only asked about again after 30 days.
 - Checks each library folder for **write access** before downloading anything for it, so read-only mounts are
-  reported once instead of failing per series.
+  reported once, marked **Read-only**, and left alone until the next 30-day check instead of failing per series.
+- **Leave out folders** you never want touched (for example a read-only IPTV mount at `/vod`).
 - A settings page with counts by status, a searchable series list, and per-series **Fetch**, **Set URL** (save any
   MP3 link as the theme) and **Skip**.
 
@@ -28,7 +30,7 @@ Emby only plays theme songs in clients that support them, and some clients have 
 
 ## How a run works
 
-1. Lists the series in the chosen libraries, newest added first.
+1. Lists the series in the chosen libraries, minus excluded folders, in the chosen order.
 2. Skips series that already have a theme: anything Emby already lists, a `theme.*` audio file in the series folder,
    or a `theme-music/` folder with audio in it.
 3. Picks the series that are due: never checked first, then misses and failures whose retry time has passed.
@@ -49,17 +51,21 @@ Emby only plays theme songs in clients that support them, and some clients have 
 | Already had one | A theme was there before the plugin looked | Never |
 | Not found | Plex has no theme for the series' TVDB id | After *Look again for missing themes* (30 days) |
 | No usable id | No TVDB id, and none could be found from TMDB | After 30 days |
-| Failed | Network error, unreadable download, or the folder isn't writable | After *Retry failures* (12 hours), doubling on repeats up to 7 days |
+| Read-only folder | Emby can't write to the series folder | After 30 days |
+| Failed | Network error, unreadable download, or a write that failed | After *Retry failures* (12 hours), doubling on repeats up to 7 days |
 | Skipped | You told it to leave this series alone | Never (until you unskip) |
 
 The **Look again** and **Retry failed now** buttons on the settings page reset those groups so the next run tries
-them straight away.
+them straight away. **Re-check read-only folders** does the same for Read-only series (useful after fixing a
+mount's permissions).
 
 ## Settings
 
 | Setting | Default | |
 |---|---|---|
 | Libraries | all TV libraries | |
+| Leave out these folders | none | One path per line as Emby sees it, e.g. `/vod`. Series inside are ignored and their history dropped. |
+| Look up first | oldest shows | Oldest shows, highest rated, or newest added. Applies to series not checked yet. |
 | Lookups per run | 1000 | Outside requests (Plex or TMDB) per run. Series that already have a theme don't count. |
 | Pause between requests | 250 ms | |
 | Look again for missing themes after | 30 days | |

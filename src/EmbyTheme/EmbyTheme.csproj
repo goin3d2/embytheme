@@ -15,7 +15,7 @@
     <AssemblyName>EmbyTheme</AssemblyName>
     <RootNamespace>EmbyTheme</RootNamespace>
     <!-- Bumping this on main publishes a GitHub Release (see .github/workflows/release.yml). -->
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>disable</ImplicitUsings>

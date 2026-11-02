@@ -10,7 +10,8 @@ define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-checkbox', 'em
         NoId: 'No usable id',
         Failed: 'Failed',
         Pending: 'Not checked yet',
-        Skipped: 'Skipped'
+        Skipped: 'Skipped',
+        ReadOnly: 'Read-only folder'
     };
 
     function url(path) {
@@ -186,7 +187,7 @@ define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-checkbox', 'em
 
     View.prototype.renderStatus = function (s) {
         var counts = s.Counts || {};
-        var order = ['Saved', 'Existing', 'NotFound', 'NoId', 'Failed', 'Pending', 'Skipped'];
+        var order = ['Saved', 'Existing', 'NotFound', 'NoId', 'ReadOnly', 'Failed', 'Pending', 'Skipped'];
         this.view.querySelector('.et-tiles').innerHTML = order.map(function (k) {
             return '<div class="et-tile ' + k.toLowerCase() + '" data-status="' + k + '"><b>' + (counts[k] || 0).toLocaleString() + '</b><span>' + STATUS_LABELS[k] + '</span></div>';
         }).join('');
@@ -198,7 +199,7 @@ define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-checkbox', 'em
         }
         if (r) {
             lines.push('Last run ' + esc(when(r.FinishedUtc)) + ': ' + r.Checked + ' checked, ' + r.Saved + ' saved, ' + r.NotFound + ' not on Plex, ' +
-                r.NoId + ' no usable id, ' + r.AlreadyHadTheme + ' already had one, ' + r.Failed + ' failed. ' +
+                r.NoId + ' no usable id, ' + r.AlreadyHadTheme + ' already had one, ' + (r.ReadOnly || 0) + ' in read-only folders, ' + r.Failed + ' failed. ' +
                 r.Waiting.toLocaleString() + ' waiting for later runs (' + r.SeriesInScope.toLocaleString() + ' series in scope).');
             if (r.Note) {
                 lines.push('<span class="et-error">' + esc(r.Note) + '</span>');
@@ -245,7 +246,7 @@ define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-checkbox', 'em
             if (el.type === 'checkbox') {
                 el.checked = !!value;
             } else {
-                el.value = value === null || value === undefined ? '' : value;
+                el.value = value === null || value === undefined ? '' : (Array.isArray(value) ? value.join('\n') : value);
             }
         });
     };
@@ -259,7 +260,9 @@ define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-checkbox', 'em
             } else if (el.type === 'number') {
                 options[key] = parseInt(el.value, 10) || 0;
             } else {
-                options[key] = el.value;
+                options[key] = el.getAttribute('data-list') !== null
+                    ? el.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(function (s) { return s; })
+                    : el.value;
             }
         });
         options.LibraryIds = Array.prototype.map.call(this.view.querySelectorAll('[data-lib]:checked'), function (el) {
@@ -324,7 +327,7 @@ define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-checkbox', 'em
             ? '<button is="emby-button" type="button" class="raised" data-action="unskip" data-id="' + esc(e.Id) + '">Unskip</button>'
             : '<button is="emby-button" type="button" class="raised" data-action="skip" data-id="' + esc(e.Id) + '">Skip</button>';
         return '<tr data-row="' + esc(e.Id) + '">' +
-            '<td>' + esc(e.Name) + '</td>' +
+            '<td>' + esc(e.Name) + (e.Path ? '<br><span class="et-hint et-mono">' + esc(e.Path) + '</span>' : '') + '</td>' +
             '<td class="et-mono">' + ids.join('<br>') + '</td>' +
             '<td><span class="et-pill ' + esc(e.Status) + '">' + esc(STATUS_LABELS[e.Status] || e.Status) + '</span></td>' +
             '<td class="et-err">' + detail + '</td>' +

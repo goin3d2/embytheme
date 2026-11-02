@@ -73,6 +73,18 @@ namespace EmbyTheme.Tests
             Check(!ThemeRules.IsDue(new SeriesThemeEntry { Status = ThemeStatus.Failed, Attempts = 20, CheckedUtc = now.AddDays(-6) }, now, 30, 12), "failure backoff capped at 7 days (not yet)");
             Check(ThemeRules.IsDue(new SeriesThemeEntry { Status = ThemeStatus.Failed, Attempts = 20, CheckedUtc = now.AddDays(-7) }, now, 30, 12), "failure backoff capped at 7 days");
             Check(ThemeRules.IsDue(new SeriesThemeEntry { Status = ThemeStatus.NotFound }, now, 30, 12), "missing check time is due");
+            Check(!ThemeRules.IsDue(new SeriesThemeEntry { Status = ThemeStatus.ReadOnly, CheckedUtc = now.AddDays(-29) }, now, 30, 12), "read-only waits 30 days");
+            Check(ThemeRules.IsDue(new SeriesThemeEntry { Status = ThemeStatus.ReadOnly, CheckedUtc = now.AddDays(-30) }, now, 30, 12), "read-only due after 30 days");
+
+            var ex = new[] { "/vod", "D:\\Media\\IPTV\\" };
+            Check(ThemeRules.IsExcluded("/vod/TV/Show (2019)", ex), "excluded: inside /vod");
+            Check(ThemeRules.IsExcluded("/vod", ex), "excluded: the folder itself");
+            Check(ThemeRules.IsExcluded("/VOD/TV/x", ex), "excluded: case-insensitive");
+            Check(!ThemeRules.IsExcluded("/vodka/TV/x", ex), "not excluded: name prefix only");
+            Check(!ThemeRules.IsExcluded("/mnt/media/TV/x", ex), "not excluded: other folder");
+            Check(ThemeRules.IsExcluded("D:/Media/IPTV/Show", ex), "excluded: windows path, either slash");
+            Check(!ThemeRules.IsExcluded("/vod/x", new[] { " ", "" }), "blank exclusions ignored");
+            Check(!ThemeRules.IsExcluded(null, ex), "null path not excluded");
         }
 
         private static void Mp3Checks()
@@ -155,6 +167,14 @@ namespace EmbyTheme.Tests
             Check(again.CountByStatus()["Saved"] == 1 && again.CountByStatus()["NotFound"] == 1, "counts by status");
             Check(again.Reset(e => e.Status == ThemeStatus.NotFound) == 1 && again.Get(42).Status == ThemeStatus.Pending && again.Get(42).CheckedUtc == null, "reset");
             Check(File.ReadAllText(path).Contains("\"NotFound\""), "statuses saved as names");
+
+            again.GetOrAdd(9).Status = ThemeStatus.Failed;
+            again.GetOrAdd(9).Error = "folder is not writable (Access denied)";
+            again.GetOrAdd(9).Attempts = 4;
+            again.GetOrAdd(10).Status = ThemeStatus.Failed;
+            again.GetOrAdd(10).Error = "Plex: HTTP 500";
+            Check(again.MigrateReadOnly() == 1 && again.Get(9).Status == ThemeStatus.ReadOnly && again.Get(9).Attempts == 0 && again.Get(10).Status == ThemeStatus.Failed, "0.1.0 read-only failures migrated");
+            Check(again.CountByStatus()["ReadOnly"] == 1, "read-only counted");
 
             File.WriteAllText(path, "{ not json");
             string error = null;

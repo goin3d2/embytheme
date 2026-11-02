@@ -35,6 +35,7 @@
             .et-pill.Saved { background: rgba(82,181,75,.25); }
             .et-pill.Failed { background: rgba(255,90,90,.25); }
             .et-pill.Existing { background: rgba(55,138,221,.25); }
+            .et-pill.ReadOnly { background: rgba(200,160,60,.25); }
             .et-pager { display: flex; gap: .8em; align-items: center; margin: .8em 0 0; }
             .et-pager button { margin: 0; }
             .et-msg { margin: .8em 0 0; font-size: .92em; }
@@ -51,6 +52,7 @@
                 <div class="et-actions">
                     <button is="emby-button" type="button" class="raised btnReset" data-statuses="NotFound,NoId"><span>Look again at not found / no id</span></button>
                     <button is="emby-button" type="button" class="raised btnReset" data-statuses="Failed"><span>Retry failed now</span></button>
+                    <button is="emby-button" type="button" class="raised btnReset" data-statuses="ReadOnly"><span>Re-check read-only folders</span></button>
                     <a class="button-link" href="#!/scheduledtasks" style="align-self:center;">Open Scheduled Tasks</a>
                 </div>
                 <p class="et-hint">Downloads run from <b>Scheduled Tasks &gt; EmbyTheme &gt; Download TV theme songs</b> (every 6 hours by default). Click a count to list those series below.</p>
@@ -61,10 +63,23 @@
                     <h2>Libraries</h2>
                     <div class="et-libs"></div>
                     <p class="et-hint">Nothing ticked means every library with TV series. Narrowing this to the libraries you browse most keeps runs short.</p>
+                    <div class="inputContainer" style="margin-top: 1.2em;">
+                        <label class="inputLabel" for="etExcluded">Leave out these folders (one per line, as Emby sees them)</label>
+                        <textarea id="etExcluded" class="et-textinput" data-key="ExcludedPaths" data-list rows="3" style="width: 100%;" placeholder="/vod"></textarea>
+                        <div class="fieldDescription">Series in these folders, or below them, are ignored completely, for example a read-only IPTV mount.</div>
+                    </div>
                 </div>
 
                 <div class="et-section">
                     <h2>Lookups</h2>
+                    <div class="selectContainer">
+                        <select is="emby-select" data-key="Order" label="Look up first">
+                            <option value="OldestFirst">Oldest shows first (Plex covers these best)</option>
+                            <option value="HighestRated">Highest rated first</option>
+                            <option value="NewestAdded">Newest added first</option>
+                        </select>
+                        <div class="fieldDescription">Order for series that haven't been checked yet. Re-checks go oldest check first.</div>
+                    </div>
                     <div class="et-grid2">
                         <div class="inputContainer">
                             <input is="emby-input" type="number" min="1" max="100000" data-key="MaxLookupsPerRun" label="Lookups per run" />
@@ -114,6 +129,7 @@
                             <option value="NoId">No usable id</option>
                             <option value="Failed">Failed</option>
                             <option value="Pending">Not checked yet</option>
+                            <option value="ReadOnly">Read-only folder</option>
                             <option value="Skipped">Skipped</option>
                         </select>
                     </div>

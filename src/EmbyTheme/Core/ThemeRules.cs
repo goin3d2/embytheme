@@ -44,6 +44,7 @@ namespace EmbyTheme.Core
             {
                 case ThemeStatus.NotFound:
                 case ThemeStatus.NoId:
+                case ThemeStatus.ReadOnly:
                     return age >= TimeSpan.FromDays(Math.Max(1, retryMissingDays));
                 case ThemeStatus.Failed:
                     // Back off on repeated failures: 1x, 2x, 4x... the interval, capped at 7 days.
@@ -53,6 +54,29 @@ namespace EmbyTheme.Core
                     return false;
             }
         }
+
+        /// <summary>True if the path is one of the excluded folders or inside one (case-insensitive, either slash).</summary>
+        public static bool IsExcluded(string path, string[] excludedPaths)
+        {
+            if (string.IsNullOrEmpty(path) || excludedPaths == null || excludedPaths.Length == 0)
+            {
+                return false;
+            }
+
+            var p = NormalizePath(path);
+            foreach (var raw in excludedPaths)
+            {
+                var prefix = NormalizePath(raw);
+                if (prefix.Length > 0 && (p.Equals(prefix, StringComparison.OrdinalIgnoreCase) || p.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static string NormalizePath(string path) => (path ?? string.Empty).Trim().Replace('\\', '/').TrimEnd('/');
 
         /// <summary>True if the folder already has a theme song Emby would pick up (theme.* audio, or a theme-music folder with audio).</summary>
         public static bool FolderHasTheme(string folder)
