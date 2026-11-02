@@ -117,6 +117,10 @@ namespace EmbyTheme.Tests
                 ThemeRules.WriteTheme(dir, FakeMp3(30_000), overwrite: true);
                 Check(new FileInfo(path).Length == 30_000, "overwrite replaces");
 
+                Check(ThemeRules.CanWrite(dir, out var probeErr) && probeErr == null, "writable folder probes ok");
+                Check(Directory.GetFiles(dir, ".embytheme-probe*").Length == 0, "probe file removed");
+                Check(!ThemeRules.CanWrite(Path.Combine(dir, "nope", "deeper"), out var missingErr) && missingErr != null, "missing folder probes as not writable");
+
                 var dir2 = Path.Combine(dir, "show2");
                 Directory.CreateDirectory(Path.Combine(dir2, "theme-music"));
                 Check(!ThemeRules.FolderHasTheme(dir2), "empty theme-music folder is not a theme");

@@ -113,6 +113,27 @@ namespace EmbyTheme.Core
         }
 
         /// <summary>
+        /// Whether files can be created in a folder: creates and deletes a tiny hidden probe file. Used once per
+        /// library folder per run, so a read-only mount is found before anything is downloaded for it.
+        /// </summary>
+        public static bool CanWrite(string folder, out string error)
+        {
+            var probe = Path.Combine(folder, ".embytheme-probe-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                File.WriteAllBytes(probe, Array.Empty<byte>());
+                File.Delete(probe);
+                error = null;
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Write the theme next to the series' files. Written to a hidden temp name first and then renamed, so Emby
         /// never sees a half-written theme.mp3.
         /// </summary>

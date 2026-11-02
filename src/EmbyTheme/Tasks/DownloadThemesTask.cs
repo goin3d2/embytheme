@@ -82,11 +82,15 @@ namespace EmbyTheme.Tasks
             var series = service.GetSeriesInScope(options);
             summary.SeriesInScope = series.Length;
 
-            // Keep entries for series that are still in scope; forget the rest so counts match the library.
-            var inScope = new HashSet<long>(series.Select(s => s.InternalId));
-            foreach (var gone in store.Data.Series.Keys.Where(k => !inScope.Contains(k)).ToList())
+            // When covering every library, forget series that are gone so the counts match the library. (With a
+            // narrower choice, other libraries' history is kept in case they're switched back on.)
+            if (options.LibraryIds.Length == 0)
             {
-                store.Data.Series.TryRemove(gone, out _);
+                var inScope = new HashSet<long>(series.Select(s => s.InternalId));
+                foreach (var gone in store.Data.Series.Keys.Where(k => !inScope.Contains(k)).ToList())
+                {
+                    store.Data.Series.TryRemove(gone, out _);
+                }
             }
 
             // Cheap pass with no I/O: register new series, and mark ones Emby already knows have a theme.
@@ -116,7 +120,6 @@ namespace EmbyTheme.Tasks
                 tmdb.IsConfigured ? string.Empty : " (no TMDB key: series with only a TMDB id are skipped)");
 
             var lookups = 0;
-            var writeFailuresInRow = 0;
             var processed = 0;
             foreach (var (show, entry) in due)
             {
@@ -158,17 +161,17 @@ namespace EmbyTheme.Tasks
                     case ThemeStatus.Existing: summary.AlreadyHadTheme++; break;
                     case ThemeStatus.Failed:
                         summary.Failed++;
-                        this.logger.Warn("{0}: {1}", show.Name, outcome.Detail);
-                        break;
-                }
+                        if (outcome.WriteFailed)
+                        {
+                            // Read-only folders are reported once each in the summary, not once per series.
+                            this.logger.Debug("{0}: {1}", show.Name, outcome.Detail);
+                        }
+                        else
+                        {
+                            this.logger.Warn("{0}: {1}", show.Name, outcome.Detail);
+                        }
 
-                writeFailuresInRow = outcome.WriteFailed ? writeFailuresInRow + 1 : (outcome.Status == ThemeStatus.Saved ? 0 : writeFailuresInRow);
-                if (options.StopAfterWriteFailures > 0 && writeFailuresInRow >= options.StopAfterWriteFailures)
-                {
-                    summary.StoppedEarly = true;
-                    summary.Note = $"Stopped after {writeFailuresInRow} write failures in a row. Check that Emby can write to your series folders.";
-                    this.logger.Error(summary.Note);
-                    break;
+                        break;
                 }
 
                 if (outcome.UsedLookup)
@@ -188,6 +191,11 @@ namespace EmbyTheme.Tasks
             }
 
             summary.Waiting = Math.Max(0, due.Count - processed);
+            if (service.UnwritableFolders.Count > 0)
+            {
+                summary.Note = "Emby can't write to: " + string.Join(", ", service.UnwritableFolders) + ". Series there are retried later.";
+            }
+
             summary.FinishedUtc = DateTime.UtcNow;
             store.Data.LastRun = summary;
             store.Save();

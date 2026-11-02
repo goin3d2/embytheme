@@ -27,9 +27,6 @@ namespace EmbyTheme
         /// <summary>Ask Emby to refresh each series after saving its theme, so the theme plays without a library scan.</summary>
         public bool RefreshAfterSave { get; set; } = true;
 
-        /// <summary>Stop a run after this many write failures in a row (usually a read-only folder or mount). 0 = never.</summary>
-        public int StopAfterWriteFailures { get; set; } = 25;
-
         public PluginOptions Normalize()
         {
             this.LibraryIds = (this.LibraryIds ?? Array.Empty<string>())
@@ -41,7 +38,6 @@ namespace EmbyTheme
             this.RequestDelayMs = Clamp(this.RequestDelayMs, 0, 10000);
             this.RetryMissingDays = Clamp(this.RetryMissingDays, 1, 365);
             this.RetryFailedHours = Clamp(this.RetryFailedHours, 1, 24 * 7);
-            this.StopAfterWriteFailures = Clamp(this.StopAfterWriteFailures, 0, 100000);
             this.TmdbApiKey = (this.TmdbApiKey ?? string.Empty).Trim();
             return this;
         }

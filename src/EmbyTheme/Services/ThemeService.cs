@@ -40,6 +40,13 @@ namespace EmbyTheme.Services
         private readonly IFileSystem fileSystem;
         private readonly ILogger logger;
 
+        /// <summary>Write check results per library folder (a series folder's parent), for the life of this service.</summary>
+        private readonly Dictionary<string, string> unwritableParents = new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly HashSet<string> writableParents = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>Library folders found read-only so far.</summary>
+        public IReadOnlyCollection<string> UnwritableFolders => this.unwritableParents.Keys;
+
         public ThemeService(ILibraryManager libraryManager, ILibraryMonitor libraryMonitor, IProviderManager providerManager, IFileSystem fileSystem, ILogger logger)
         {
             this.libraryManager = libraryManager;
@@ -194,6 +201,11 @@ namespace EmbyTheme.Services
                 return new SeriesOutcome { Status = ThemeStatus.Failed, Detail = "series folder not found: " + (series.Path ?? "(none)") };
             }
 
+            if (!this.CanWriteTo(series.Path, out var writeError))
+            {
+                return new SeriesOutcome { Status = ThemeStatus.Failed, WriteFailed = true, Detail = "folder is not writable (" + writeError + ")" };
+            }
+
             var usedLookup = false;
             if (string.IsNullOrEmpty(entry.EffectiveTvdb) && !string.IsNullOrEmpty(entry.Tmdb) && tmdb != null && tmdb.IsConfigured && !entry.TmdbResolveTried)
             {
@@ -232,6 +244,35 @@ namespace EmbyTheme.Services
             return saved;
         }
 
+        /// <summary>
+        /// Probe the series folder once per parent folder: series in the same library location share a mount, so one
+        /// read-only result covers them all without a probe (or a download) each.
+        /// </summary>
+        private bool CanWriteTo(string seriesFolder, out string error)
+        {
+            var parent = Path.GetDirectoryName(seriesFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? seriesFolder;
+            if (this.writableParents.Contains(parent))
+            {
+                error = null;
+                return true;
+            }
+
+            if (this.unwritableParents.TryGetValue(parent, out error))
+            {
+                return false;
+            }
+
+            if (ThemeRules.CanWrite(seriesFolder, out error))
+            {
+                this.writableParents.Add(parent);
+                return true;
+            }
+
+            this.unwritableParents[parent] = error;
+            this.logger.Warn("Can't write theme files under {0} ({1}); series there are skipped this run", parent, error);
+            return false;
+        }
+
         private SeriesOutcome Save(Series series, byte[] data, bool overwrite, PluginOptions options)
         {
             var target = Path.Combine(series.Path, ThemeRules.ThemeFileName);
@@ -242,6 +283,7 @@ namespace EmbyTheme.Services
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
+                this.logger.Warn("Could not write {0}: {1}", target, ex.Message);
                 return new SeriesOutcome { Status = ThemeStatus.Failed, WriteFailed = true, Detail = "could not write " + target + ": " + ex.Message };
             }
             finally

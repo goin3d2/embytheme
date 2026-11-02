@@ -82,10 +82,6 @@
                             <input is="emby-input" type="number" min="1" max="168" data-key="RetryFailedHours" label="Retry failures after (hours)" />
                             <div class="fieldDescription">Doubles each time the same series fails again, up to 7 days.</div>
                         </div>
-                        <div class="inputContainer">
-                            <input is="emby-input" type="number" min="0" max="100000" data-key="StopAfterWriteFailures" label="Stop a run after this many write failures in a row" />
-                            <div class="fieldDescription">Usually means a read-only folder or mount. 0 never stops.</div>
-                        </div>
                     </div>
                     <div class="checkboxContainer">
                         <label><input type="checkbox" is="emby-checkbox" data-key="RefreshAfterSave" /><span>Refresh each series after saving its theme (so it plays without a library scan)</span></label>
