@@ -1,13 +1,15 @@
 name: Build
 
 # Every push and pull request: run the tests and build the plugin against Emby's NuGet package.
-# A tag like v0.1.0 also publishes a GitHub Release with EmbyTheme.dll attached.
+# Pushing a tag like v0.1.0, or publishing a release for one on GitHub, attaches EmbyTheme.dll to that release.
 
 on:
   push:
     branches: ['**']
     tags: ['v*']
   pull_request:
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
