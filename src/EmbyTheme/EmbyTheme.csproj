@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Emby 4.10+ runs on .NET 8, so this plugin targets net8.0.
+
+    Two ways to get the Emby assemblies to compile against (they are never copied to the output; the server
+    supplies them at runtime):
+      1. Default: Emby's NuGet package mediabrowser.server.core (this is what CI uses).
+      2. Your own server's assemblies: copy its "system" folder next to the repo and pass -p:EmbyLibDir=<path>,
+         e.g.  docker cp <emby-container>:/system ./emby-lib
+               dotnet build src/EmbyTheme -c Release -p:EmbyLibDir=$PWD/emby-lib
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>EmbyTheme</AssemblyName>
+    <RootNamespace>EmbyTheme</RootNamespace>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EmbyLibDir)' == ''">
+    <PackageReference Include="mediabrowser.server.core" Version="4.9.1.90">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EmbyLibDir)' != ''">
+    <Reference Include="MediaBrowser.Common"><HintPath>$(EmbyLibDir)/MediaBrowser.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MediaBrowser.Controller"><HintPath>$(EmbyLibDir)/MediaBrowser.Controller.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MediaBrowser.Model"><HintPath>$(EmbyLibDir)/MediaBrowser.Model.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\ThumbImage.png" LogicalName="EmbyTheme.ThumbImage.png" />
+    <EmbeddedResource Include="Configuration\configPage.html" LogicalName="EmbyTheme.Configuration.configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.js" LogicalName="EmbyTheme.Configuration.configPage.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EmbyTheme.Tests" />
+  </ItemGroup>
+
+</Project>

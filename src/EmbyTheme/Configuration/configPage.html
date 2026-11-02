@@ -1,0 +1,141 @@
+<div is="emby-scroller" class="view flex flex-direction-column scrollFrameY flex-grow" data-horizontal="false" data-forcescrollbar="true" data-centerfocus="true" data-bindheader="true" data-controller="__plugin/embythemejs" data-title="EmbyTheme">
+    <div class="scrollSlider flex-grow flex-direction-column padded-left padded-left-page padded-right padded-top-page padded-bottom-page">
+
+        <style>
+            .et-wrap { max-width: 70em; }
+            .et-section { margin: 0 0 2.4em; }
+            .et-section h2 { margin: 0 0 .6em; }
+            .et-hint { opacity: .7; font-size: .9em; margin: .3em 0 0; line-height: 1.4; }
+            .et-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5em, 1fr)); gap: .7em; margin: .6em 0 1em; }
+            .et-tile { background: rgba(255,255,255,.06); border-radius: 6px; padding: .7em .8em; cursor: pointer; border: 1px solid transparent; }
+            .et-tile:hover { border-color: rgba(255,255,255,.2); }
+            .et-tile b { display: block; font-size: 1.6em; font-weight: 600; font-variant-numeric: tabular-nums; }
+            .et-tile span { opacity: .75; font-size: .9em; }
+            .et-tile.saved b { color: #52b54b; }
+            .et-tile.failed b { color: #ff7f7f; }
+            .et-lastrun { font-size: .92em; opacity: .85; line-height: 1.5; }
+            .et-actions { display: flex; flex-wrap: wrap; gap: .7em; margin: .8em 0; }
+            .et-actions button { margin: 0; }
+            .et-libs label { display: flex; margin: .15em 0; }
+            .et-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(16em, 1fr)); gap: 0 1.5em; }
+            .et-textinput { background: rgba(255,255,255,.08); color: inherit; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; padding: .5em .6em; font: inherit; box-sizing: border-box; }
+            .et-filter { display: flex; flex-wrap: wrap; gap: .8em; align-items: end; margin: 0 0 .8em; }
+            .et-filter .selectContainer { margin: 0; min-width: 12em; }
+            .et-filter input { flex: 1 1 14em; }
+            .et-table { width: 100%; border-collapse: collapse; font-size: .92em; }
+            .et-table th { text-align: left; font-weight: 600; opacity: .75; padding: .4em .5em; border-bottom: 1px solid rgba(255,255,255,.15); }
+            .et-table td { padding: .45em .5em; border-bottom: 1px solid rgba(255,255,255,.07); vertical-align: top; }
+            .et-table td.et-err { opacity: .7; max-width: 22em; overflow-wrap: anywhere; }
+            .et-table .et-rowbtns { white-space: nowrap; }
+            .et-table .et-rowbtns button { margin: 0 .3em 0 0; padding: .3em .6em; font-size: .9em; }
+            .et-urlrow td { background: rgba(255,255,255,.04); }
+            .et-urlrow form { display: flex; gap: .6em; }
+            .et-urlrow input { flex: 1; }
+            .et-pill { display: inline-block; padding: .1em .5em; border-radius: 1em; font-size: .85em; background: rgba(255,255,255,.1); }
+            .et-pill.Saved { background: rgba(82,181,75,.25); }
+            .et-pill.Failed { background: rgba(255,90,90,.25); }
+            .et-pill.Existing { background: rgba(55,138,221,.25); }
+            .et-pager { display: flex; gap: .8em; align-items: center; margin: .8em 0 0; }
+            .et-pager button { margin: 0; }
+            .et-msg { margin: .8em 0 0; font-size: .92em; }
+            .et-error { color: #ff7f7f; }
+            .et-mono { font-family: monospace; font-size: .9em; }
+        </style>
+
+        <div class="et-wrap">
+
+            <div class="et-section">
+                <h2>Status</h2>
+                <div class="et-tiles"></div>
+                <div class="et-lastrun"></div>
+                <div class="et-actions">
+                    <button is="emby-button" type="button" class="raised btnReset" data-statuses="NotFound,NoId"><span>Look again at not found / no id</span></button>
+                    <button is="emby-button" type="button" class="raised btnReset" data-statuses="Failed"><span>Retry failed now</span></button>
+                    <a class="button-link" href="#!/scheduledtasks" style="align-self:center;">Open Scheduled Tasks</a>
+                </div>
+                <p class="et-hint">Downloads run from <b>Scheduled Tasks &gt; EmbyTheme &gt; Download TV theme songs</b> (every 6 hours by default). Click a count to list those series below.</p>
+            </div>
+
+            <form class="et-form">
+                <div class="et-section">
+                    <h2>Libraries</h2>
+                    <div class="et-libs"></div>
+                    <p class="et-hint">Nothing ticked means every library with TV series. Narrowing this to the libraries you browse most keeps runs short.</p>
+                </div>
+
+                <div class="et-section">
+                    <h2>Lookups</h2>
+                    <div class="et-grid2">
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="1" max="100000" data-key="MaxLookupsPerRun" label="Lookups per run" />
+                            <div class="fieldDescription">Series looked up each time the task runs. New series go first, newest added first.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" max="10000" data-key="RequestDelayMs" label="Pause between requests (ms)" />
+                            <div class="fieldDescription">Keeps the load on Plex's theme server polite.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="1" max="365" data-key="RetryMissingDays" label="Look again for missing themes after (days)" />
+                            <div class="fieldDescription">For series Plex had no theme for, or with no usable id.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="1" max="168" data-key="RetryFailedHours" label="Retry failures after (hours)" />
+                            <div class="fieldDescription">Doubles each time the same series fails again, up to 7 days.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" max="100000" data-key="StopAfterWriteFailures" label="Stop a run after this many write failures in a row" />
+                            <div class="fieldDescription">Usually means a read-only folder or mount. 0 never stops.</div>
+                        </div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label><input type="checkbox" is="emby-checkbox" data-key="RefreshAfterSave" /><span>Refresh each series after saving its theme (so it plays without a library scan)</span></label>
+                    </div>
+                </div>
+
+                <div class="et-section">
+                    <h2>TMDB</h2>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" autocomplete="off" data-key="TmdbApiKey" label="TMDB API key or read access token (optional)" />
+                        <div class="fieldDescription">Plex's theme server is keyed by TVDB id. With a key, series that only have a TMDB id get their TVDB id looked up (once, then cached).</div>
+                    </div>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button>
+                </div>
+                <div class="et-msg et-savemsg"></div>
+            </form>
+
+            <div class="et-section" style="margin-top: 2.4em;">
+                <h2>Series</h2>
+                <div class="et-filter">
+                    <div class="selectContainer">
+                        <select is="emby-select" class="selStatus" label="Status">
+                            <option value="">All</option>
+                            <option value="Saved">Saved</option>
+                            <option value="Existing">Already had one</option>
+                            <option value="NotFound">Not found</option>
+                            <option value="NoId">No usable id</option>
+                            <option value="Failed">Failed</option>
+                            <option value="Pending">Not checked yet</option>
+                            <option value="Skipped">Skipped</option>
+                        </select>
+                    </div>
+                    <input type="search" class="et-textinput txtSearch" placeholder="Search series" />
+                </div>
+                <table class="et-table">
+                    <thead><tr><th>Series</th><th>Ids</th><th>Status</th><th>Detail</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="et-pager">
+                    <button is="emby-button" type="button" class="raised btnPrev"><span>Previous</span></button>
+                    <span class="et-pageinfo"></span>
+                    <button is="emby-button" type="button" class="raised btnNext"><span>Next</span></button>
+                </div>
+                <div class="et-msg et-listmsg"></div>
+                <p class="et-hint"><b>Fetch</b> looks this series up now. <b>Set URL</b> saves any MP3 link as its theme (replacing the current one). <b>Skip</b> keeps the task away from it.</p>
+            </div>
+
+        </div>
+    </div>
+</div>

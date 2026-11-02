@@ -1,0 +1,67 @@
+name: Build
+
+# Every push and pull request: run the tests and build the plugin against Emby's NuGet package.
+# A tag like v0.1.0 also publishes a GitHub Release with EmbyTheme.dll attached.
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            FULL="${GITHUB_REF_NAME#v}"
+          else
+            FULL="$(grep -oP '(?<=<Version Condition="\x27\$\(Version\)\x27 == \x27\x27">)[^<]+' src/EmbyTheme/EmbyTheme.csproj)"
+          fi
+          NUM="${FULL%%-*}"; NUM="${NUM%%+*}"
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          echo "numeric=$NUM" >> "$GITHUB_OUTPUT"
+          echo "Building $FULL ($NUM)"
+
+      - name: Test
+        run: dotnet run --project tests/EmbyTheme.Tests -c Release
+
+      - name: Build plugin
+        run: >
+          dotnet publish src/EmbyTheme/EmbyTheme.csproj -c Release -o out
+          -p:Version=${{ steps.ver.outputs.numeric }}
+          -p:InformationalVersion=${{ steps.ver.outputs.full }}
+
+      - name: Check output
+        shell: bash
+        run: |
+          ls -l out
+          test -f out/EmbyTheme.dll
+          if ls out/MediaBrowser.*.dll >/dev/null 2>&1; then echo "Emby assemblies were bundled"; exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EmbyTheme-${{ steps.ver.outputs.full }}
+          path: out/EmbyTheme.dll
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EmbyTheme ${{ steps.ver.outputs.full }}
+          generate_release_notes: true
+          files: out/EmbyTheme.dll
